@@ -1,0 +1,128 @@
+---
+# vim:ft=ansible:
+
+# - name: Test items
+#   debug: msg="{{ item }}"
+#   with_dict: deploy_site_dict
+
+# install and configure SOGo:
+
+
+- name: Update apt cache if needed.
+  apt: update_cache=yes cache_valid_time=3600
+
+- name: Ensure required packages
+  apt: pkg={{ item }} state=present
+  with_items:
+    - git
+    - devscripts
+    - debhelper
+    - build-essential
+    - dpkg-dev
+    - checkinstall
+    - gnustep-make
+    - gnustep-base-runtime
+    - libgnustep-base-dev
+    - libgnustep-base1.24-dbg
+    - gobjc
+    - libxml2-dev
+    - libldap2-dev
+    - libssl-dev
+    - zlib1g-dev
+    - libpq-dev
+    - libmysqlclient-dev
+    - libmemcached-dev
+    - python-m2crypto
+    - python-simplejson
+    - python-vobject
+    - python-dateutil
+    - mysql-client
+    - postgresql-client
+    - tmpreaper
+    - libcurl4-openssl-dev
+    - libsbjson-dev
+    - libexpat1-dev
+    - liblasso3-dev
+    - zip
+
+- git: repo=https://github.com/inverse-inc/sogo.git
+       dest=/srv/checkout/sogo/sogo
+       version=SOGo-3.2.1
+
+- git: repo=https://github.com/inverse-inc/sope.git
+       dest=/srv/checkout/sogo/sope
+       version=SOPE-3.2.1
+
+- name: Install libwbxml2-dev_0.11.2-1.1_i386.deb
+  apt:
+    deb: http://packages.inverse.ca/SOGo/nightly/2/ubuntu/pool/precise/w/wbxml2/libwbxml2-dev_0.11.2-1.1_i386.deb
+
+- name: Install libwbxml2-0_0.11.2-1.1_i386.deb
+  apt:
+    deb: http://packages.inverse.ca/SOGo/nightly/2/ubuntu/pool/precise/w/wbxml2/libwbxml2-0_0.11.2-1.1_i386.deb
+
+- name: copy packaging/debian to ./debian
+  command: cp -a packaging/debian debian
+  args:
+    chdir: /srv/checkout/sogo/sope
+
+- name: Run Debian rules file
+  command: ./debian/rules
+  args:
+    chdir: /srv/checkout/sogo/sope
+
+- name: Run dpkg-buildpackage
+  command: dpkg-buildpackage
+  args:
+    chdir: /srv/checkout/sogo/sope
+
+- name: Install created libsope packages
+  apt:
+    deb: /srv/checkout/sogo/{{ item }}
+  with_items:
+    - libsope4.9-dev_4.9.r1664_all.deb
+    - libsope-ldap4.9_4.9.r1664_i386.deb
+    - libsope-appserver4.9_4.9.r1664_i386.deb
+    - libsope-ldap4.9-dev_4.9.r1664_i386.deb
+    - libsope-appserver4.9-dev_4.9.r1664_i386.deb
+    - libsope-mime4.9_4.9.r1664_i386.deb
+    - libsope-core4.9_4.9.r1664_i386.deb
+    - libsope-mime4.9-dev_4.9.r1664_i386.deb
+    - libsope-core4.9-dev_4.9.r1664_i386.deb
+    - libsope-xml4.9_4.9.r1664_i386.deb
+    - libsope-gdl1-4.9_4.9.r1664_i386.deb
+    - libsope-xml4.9-dev_4.9.r1664_i386.deb
+    - libsope-gdl1-4.9-dev_4.9.r1664_i386.deb
+    - sope4.9-libxmlsaxdriver_4.9.r1664_i386.deb
+    #- sope4.9-dbg_4.9.r1664_i386.deb
+    - sope4.9-gdl1-postgresql_4.9.r1664_i386.deb
+    - sope4.9-gdl1-mysql_4.9.r1664_i386.deb
+    - sope4.9-appserver_4.9.r1664_i386.deb
+
+- name: copy packaging/debian to ./debian
+  command: cp -a packaging/debian debian
+  args:
+    chdir: /srv/checkout/sogo/sogo
+
+- name: copy packaging/debian-multiarch/control-no-openchange to ./debian
+  command: cp packaging/debian-multiarch/control-no-openchange debian
+  args:
+    chdir: /srv/checkout/sogo/sogo
+
+- name: Run Debian rules file
+  command: ./debian/rules
+  args:
+    chdir: /srv/checkout/sogo/sogo
+
+- name: Run dpkg-buildpackage -b
+  command: dpkg-buildpackage -b
+  args:
+    chdir: /srv/checkout/sogo/sogo
+
+- name: Install created SOGo packages
+  apt:
+    deb: /srv/checkout/sogo/{{ item }}
+  with_items:
+    - sogo_3.2.1_i386.deb
+
+
