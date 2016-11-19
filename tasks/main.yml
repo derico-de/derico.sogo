@@ -53,13 +53,13 @@
        dest=/srv/checkout/sogo/sope
        version=SOPE-3.2.1
 
-- name: Install libwbxml2-dev_0.11.2-1.1_i386.deb
-  apt:
-    deb: http://packages.inverse.ca/SOGo/nightly/2/ubuntu/pool/precise/w/wbxml2/libwbxml2-dev_0.11.2-1.1_i386.deb
-
 - name: Install libwbxml2-0_0.11.2-1.1_i386.deb
   apt:
     deb: http://packages.inverse.ca/SOGo/nightly/2/ubuntu/pool/precise/w/wbxml2/libwbxml2-0_0.11.2-1.1_i386.deb
+
+- name: Install libwbxml2-dev_0.11.2-1.1_i386.deb
+  apt:
+    deb: http://packages.inverse.ca/SOGo/nightly/2/ubuntu/pool/precise/w/wbxml2/libwbxml2-dev_0.11.2-1.1_i386.deb
 
 - name: copy packaging/debian to ./debian
   command: cp -a packaging/debian debian
