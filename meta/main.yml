@@ -1,0 +1,14 @@
+---
+# vim:ft=ansible:
+
+galaxy_info:
+  author: "Maik Derstappen"
+  license: GPLv2
+  min_ansible_version: 2.0
+  platforms:
+   - name: Debian
+     versions:
+      - jessie
+  categories:
+   - web
+dependencies: []
