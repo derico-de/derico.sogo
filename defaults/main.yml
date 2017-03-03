@@ -1,5 +1,9 @@
 ---
 # vim:ft=ansible:
 
+sogo_version: 3.2.1
 sogo_pg_user: sogo
 sogo_pg_pw: xxx
+mc_sogo_pg_user: exim
+mc_sogo_pg_pw: xxx
+force_update: False

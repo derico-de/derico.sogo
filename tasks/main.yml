@@ -7,6 +7,8 @@
 
 # install and configure SOGo:
 
+- name: force_update
+  debug: var=force_update
 
 - name: Update apt cache if needed.
   apt: update_cache=yes cache_valid_time=3600
@@ -41,97 +43,164 @@
     - postgresql-client
     - tmpreaper
     - libcurl4-openssl-dev
-    - libsbjson-dev
     - libexpat1-dev
     - liblasso3-dev
     - zip
 
-- git: repo=https://github.com/inverse-inc/sogo.git
-       dest=/srv/checkout/sogo/sogo
-       version=SOGo-3.2.1
-       force=yes
+- name: Generate sogo_build_version file
+  template:
+    src: templates/sogo_build_version.txt
+    dest: /etc/sogo/sogo_build_version.txt
+    owner: root
+    group: root
+    mode: "u=rw,g=r"
+  register: sogo_build_version
 
-- git: repo=https://github.com/inverse-inc/sope.git
-       dest=/srv/checkout/sogo/sope
-       version=SOPE-3.2.1
-       force=yes
+- block:
+    - name: Delete sogo checkout path
+      file:
+        path: /srv/checkout/sogo
+        state: absent
 
-- name: Install libwbxml2-0_0.11.2-1.1_i386.deb
-  apt:
-    deb: http://packages.inverse.ca/SOGo/nightly/2/ubuntu/pool/precise/w/wbxml2/libwbxml2-0_0.11.2-1.1_i386.deb
+    - name: Create sogo checkout path
+      file:
+        path: /srv/checkout/sogo
+        state: directory
+        mode: 0755
 
-- name: Install libwbxml2-dev_0.11.2-1.1_i386.deb
-  apt:
-    deb: http://packages.inverse.ca/SOGo/nightly/2/ubuntu/pool/precise/w/wbxml2/libwbxml2-dev_0.11.2-1.1_i386.deb
+    #- name: find all deb files in build folder
+    #  shell: ls -1 /srv/checkout/sogo/*.deb
+    #  register: debs
 
-- name: copy packaging/debian to ./debian
-  command: cp -a packaging/debian debian
-  args:
-    chdir: /srv/checkout/sogo/sope
+    #- name: Delete exiting deb file in build folder
+    #  file: path='/src/checkout/sogo/{{ item }}' state=absent
+    #  with_items: debs.stdout_lines
 
-- name: Run Debian rules file
-  command: ./debian/rules
-  args:
-    chdir: /srv/checkout/sogo/sope
+    - name: Create sogo-downloads path
+      file:
+        path: /srv/checkout/sogo-downloads
+        state: directory
+        mode: 0755
 
-- name: Run dpkg-buildpackage
-  command: dpkg-buildpackage
-  args:
-    chdir: /srv/checkout/sogo/sope
+    - name: libwbxml2-0_0.11.2-1.1_i386.deb
+      get_url:
+        url: http://packages.inverse.ca/SOGo/nightly/2/ubuntu/pool/precise/w/wbxml2/libwbxml2-0_0.11.2-1.1_i386.deb
+        dest: /srv/checkout/sogo-downloads/libwbxml2-0_0.11.2-1.1_i386.deb
+        mode: 0750
+      register: libwbxml
 
-- name: Install created libsope packages
-  apt:
-    deb: /srv/checkout/sogo/{{ item }}
-  with_items:
-    - libsope-core4.9_4.9.r1664_i386.deb
-    - libsope-mime4.9_4.9.r1664_i386.deb
-    - libsope-appserver4.9_4.9.r1664_i386.deb
-    - libsope-ldap4.9_4.9.r1664_i386.deb
-    - libsope-core4.9-dev_4.9.r1664_i386.deb
-    - libsope-mime4.9-dev_4.9.r1664_i386.deb
-    - libsope-appserver4.9-dev_4.9.r1664_i386.deb
-    - libsope4.9-dev_4.9.r1664_all.deb
-    - libsope-xml4.9-dev_4.9.r1664_i386.deb
-    - libsope-ldap4.9-dev_4.9.r1664_i386.deb
-    - libsope-xml4.9_4.9.r1664_i386.deb
-    - libsope-gdl1-4.9_4.9.r1664_i386.deb
-    - libsope-gdl1-4.9-dev_4.9.r1664_i386.deb
-    - sope4.9-appserver_4.9.r1664_i386.deb
-    - sope4.9-libxmlsaxdriver_4.9.r1664_i386.deb
-    #- sope4.9-dbg_4.9.r1664_i386.deb
-    - sope4.9-gdl1-postgresql_4.9.r1664_i386.deb
-    - sope4.9-gdl1-mysql_4.9.r1664_i386.deb
+    - name: libwbxml2-dev_0.11.2-1.1_i386.deb
+      get_url:
+        url: http://packages.inverse.ca/SOGo/nightly/2/ubuntu/pool/precise/w/wbxml2/libwbxml2-dev_0.11.2-1.1_i386.deb
+        dest: /srv/checkout/sogo-downloads/libwbxml2-dev_0.11.2-1.1_i386.deb
+        mode: 0750
+      register: libwbxmldev
 
-- name: copy packaging/debian to ./debian
-  command: cp -a packaging/debian debian
-  args:
-    chdir: /srv/checkout/sogo/sogo
+    - name: Install libwbxml2-0_0.11.2-1.1_i386.deb
+      apt:
+        deb: /srv/checkout/sogo-downloads/libwbxml2-0_0.11.2-1.1_i386.deb
+      when: libwbxml.changed
 
-- name: copy packaging/debian-multiarch/control-no-openchange to ./debian
-  command: cp packaging/debian-multiarch/control-no-openchange debian
-  args:
-    chdir: /srv/checkout/sogo/sogo
+    - name: Install libwbxml2-dev_0.11.2-1.1_i386.deb
+      apt:
+        deb: /srv/checkout/sogo-downloads/libwbxml2-dev_0.11.2-1.1_i386.deb
+      when: libwbxmldev.changed
 
-- name: Add version line into Changlog file
-  shell: sed --in-place '1s/.*/sogo (3.2.1) unstable; urgency=low/' /srv/checkout/sogo/sogo/debian/changelog
-  tags:
-    - dev
+    - git: repo=https://github.com/inverse-inc/sogo.git
+           dest=/srv/checkout/sogo/sogo
+           version=SOGo-{{ sogo_version }}
+           force=yes
 
-- name: Run Debian rules file
-  command: ./debian/rules
-  args:
-    chdir: /srv/checkout/sogo/sogo
+    - git: repo=https://github.com/inverse-inc/sope.git
+           dest=/srv/checkout/sogo/sope
+           version=SOPE-{{ sogo_version }}
+           force=yes
 
-- name: Run dpkg-buildpackage -b
-  command: dpkg-buildpackage -b
-  args:
-    chdir: /srv/checkout/sogo/sogo
+    - name: copy packaging/debian to ./debian
+      command: cp -a packaging/debian debian
+      args:
+        chdir: /srv/checkout/sogo/sope
 
-- name: Install created SOGo packages
-  apt:
-    deb: /srv/checkout/sogo/{{ item }}
-  with_items:
-    - sogo_3.2.1_i386.deb
+    - name: Run Debian rules file
+      command: ./debian/rules
+      args:
+        chdir: /srv/checkout/sogo/sope
+
+    - name: Run dpkg-buildpackage
+      command: dpkg-buildpackage
+      args:
+        chdir: /srv/checkout/sogo/sope
+      register: build_sope
+
+    #- name: find all generated deb files in build folder
+    #  shell: ls -1 /srv/checkout/sogo/*.deb
+    #  register: new_debs
+
+    - name: Uninstall sogo and sope packages
+      command: apt-get remove -y 'sogo' 'sope.*' 'libsope.*' 'libsbjson.*'
+
+    - name: Install created libsope packages
+      shell: dpkg -i {{ item }}
+      args:
+        chdir: /srv/checkout/sogo
+      #with_items: '{{ new_debs.stdout_lines }}'
+      with_items:
+        - 'libsbjson2.3_*'
+        - 'libsope-xml4.9_*'
+        - 'libsope-core4.9_*'
+        - 'libsope-mime4.9_*'
+        - 'libsope-appserver4.9_*'
+        - 'libsope-ldap4.9_*'
+        - 'sope4.9-appserver_*'
+        - 'sope4.9-libxmlsaxdriver_*'
+        - 'libsope-gdl1-4.9_*'
+        - 'sope4.9-gdl1-postgresql_*'
+        - 'sope4.9-gdl1-mysql_*'
+        - 'libsope-gdl1-4.9-dev_*'
+        - 'libsbjson2.3-dev_*'
+        - 'libsope-xml4.9-dev_*'
+        - 'libsope-core4.9-dev_*'
+        - 'libsope-mime4.9-dev_*'
+        - 'libsope-appserver4.9-dev_*'
+        - 'libsope-ldap4.9-dev_*'
+        - 'libsope4.9-dev_*'
+        #- sope4.9-dbg_4.9.r1664_i386.deb
+
+    - name: install required packages
+      command: apt-get install -f
+
+    - name: copy packaging/debian to ./debian
+      command: cp -a packaging/debian debian
+      args:
+        chdir: /srv/checkout/sogo/sogo
+
+    - name: copy packaging/debian-multiarch/control-no-openchange to ./debian
+      command: cp packaging/debian-multiarch/control-no-openchange debian
+      args:
+        chdir: /srv/checkout/sogo/sogo
+
+    - name: Add version line into Changlog file
+      shell: sed --in-place '1s/.*/sogo ({{ sogo_version }}) unstable; urgency=low/' /srv/checkout/sogo/sogo/debian/changelog
+      tags:
+        - dev
+
+    - name: Run Debian rules file
+      command: ./debian/rules
+      args:
+        chdir: /srv/checkout/sogo/sogo
+
+    - name: Run dpkg-buildpackage -b
+      command: dpkg-buildpackage -b
+      args:
+        chdir: /srv/checkout/sogo/sogo
+      register: build_sogo
+
+    - name: Install created SOGo packages
+      apt:
+        deb: /srv/checkout/sogo/{{ item }}
+      with_items:
+        - sogo_{{sogo_version}}_i386.deb
+  when: sogo_build_version.changed or force_update
 
 - name: Copy sogo.conf template
   template:
@@ -140,6 +209,18 @@
     owner: root
     group: sogo
     mode: "u=rw,g=r"
+  register: sogo_conf
+
+- name: Check SOGo configuration syntax
+  command: /usr/bin/plparse /etc/sogo/sogo.conf
+  register: sogo_conf_test
 
 - name: Restart SOGo
   service: name=sogo state=restarted
+  when: "sogo_conf.changed and 'Parse failed' not in sogo_conf_test.stderr"
+
+- name: Verify SOGo is still running
+  service: name=sogo state=started enabled=yes
+
+
+# XXX setup PG_DB + config, see: https://sogo.nu/files/docs/SOGoInstallationGuide.html#_database_configuration
